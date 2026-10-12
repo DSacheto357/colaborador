@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Colaborador - Gestão de Vendas, Compras & Fechamento</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#05070d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Estilos Personalizados: Preto & Azul Elétrico Brilhante -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- SheetJS para Exportação de Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- ========================================================
+       CABEÇALHO SUPERIOR (HEADER)
+       ======================================================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand-wrapper">
+        <div class="brand-icon">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div class="brand-text">
+          <h1>COLABORADOR</h1>
+          <div class="brand-subtitle">
+            <span>Controle Interno</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions" style="display:flex; align-items:center; gap:8px;">
+        <div class="sync-status-badge" id="header-sync-badge" title="Clique para sincronizar com o Google Sheets agora">
+          <span class="sync-dot offline" id="header-sync-dot"></span>
+          <span id="header-sync-text">Conectando...</span>
+          <i class="fa-solid fa-rotate" id="header-sync-icon" style="font-size:0.75rem;"></i>
+        </div>
+        <button type="button" class="header-gear-btn" data-tab-target="tab-config" title="Configurações & Planilha">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================
+       CONTEÚDO PRINCIPAL
+       ======================================================== -->
+  <main class="main-wrapper">
+
+    <!-- RESUMO RÁPIDO NO TOPO (4 CARDS) -->
+    <section class="quick-summary-bar">
+      <div class="metric-card positive">
+        <div class="metric-label">Pedidos Hoje</div>
+        <div class="metric-value" id="dash-vendas-hoje">R$ 0,00</div>
+        <div class="metric-sub" id="dash-vendas-qtd">0 pedidos</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Compras Hoje</div>
+        <div class="metric-value" id="dash-compras-hoje">R$ 0,00</div>
+        <div class="metric-sub" id="dash-compras-qtd">0 compras</div>
+      </div>
+
+      <div class="metric-card positive">
+        <div class="metric-label">Saldo Operacional</div>
+        <div class="metric-value" id="dash-saldo-geral">R$ 0,00</div>
+        <div class="metric-sub" id="dash-saldo-sub">Balanço acumulado</div>
+      </div>
+
+      <div class="metric-card alert">
+        <div class="metric-label">Estoque Crítico</div>
+        <div class="metric-value" id="dash-itens-criticos" style="color:var(--amber-orange);">0 itens</div>
+        <div class="metric-sub">Abaixo de 5 unidades</div>
+      </div>
+    </section>
+
+    <!-- NAVEGAÇÃO DE ABAS NO DESKTOP -->
+    <nav class="desktop-nav-tabs">
+      <button class="nav-tab-btn active" data-tab-target="tab-dashboard">
+        <i class="fa-solid fa-gauge-high"></i> Início
+      </button>
+      <button class="nav-tab-btn" data-tab-target="tab-vendas">
+        <i class="fa-solid fa-clipboard-list"></i> Pedidos
+      </button>
+      <button class="nav-tab-btn" data-tab-target="tab-compras">
+        <i class="fa-solid fa-truck-ramp-box"></i> Compras & Insumos
+      </button>
+      <button class="nav-tab-btn" data-tab-target="tab-estoque">
+        <i class="fa-solid fa-boxes-stacked"></i> Estoque
+      </button>
+      <button class="nav-tab-btn" data-tab-target="tab-fechamento">
+        <i class="fa-solid fa-scale-balanced"></i> Central de Fechamento
+      </button>
+      <button class="nav-tab-btn" data-tab-target="tab-relatorios">
+        <i class="fa-solid fa-file-excel"></i> Relatórios & Exportar
+      </button>
+      <button class="nav-tab-btn" data-tab-target="tab-config">
+        <i class="fa-solid fa-gear"></i> Config & Planilha
+      </button>
+    </nav>
+
+    <!-- ========================================================
+         ABA 1: INÍCIO / DASHBOARD FEED
+         ======================================================== -->
+    <section class="tab-content-panel active" id="tab-dashboard">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            Últimos Lançamentos
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="App.openQuickModal('venda')">
+            <i class="fa-solid fa-plus"></i> Novo Pedido
+          </button>
+        </div>
+
+        <div class="entry-list-container" id="dashboard-recent-feed">
+          <!-- Alimentado via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 2: PEDIDOS
+         ======================================================== -->
+    <section class="tab-content-panel" id="tab-vendas">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="fa-solid fa-clipboard-list"></i>
+            Histórico de Pedidos
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="App.openQuickModal('venda')">
+            <i class="fa-solid fa-plus"></i> Novo Pedido
+          </button>
+        </div>
+
+        <!-- Filtros por Status do Pedido -->
+        <div class="filter-bar" style="margin-bottom:14px; display:flex; gap:6px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm vendas-filtro-btn active" data-status="todos">
+            Todos
+          </button>
+          <button type="button" class="btn btn-outline btn-sm vendas-filtro-btn" data-status="Finalizado">
+            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Finalizado
+          </button>
+          <button type="button" class="btn btn-outline btn-sm vendas-filtro-btn" data-status="Pago/Aguardando">
+            <i class="fa-solid fa-clock" style="color:#f59e0b;"></i> Pago/Aguardando
+          </button>
+          <button type="button" class="btn btn-outline btn-sm vendas-filtro-btn" data-status="Não pago">
+            <i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Não pago
+          </button>
+        </div>
+
+        <div class="entry-list-container" id="vendas-list-container">
+          <!-- Alimentado via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 3: COMPRAS & ENTRADA DE MATERIAIS
+         ======================================================== -->
+    <section class="tab-content-panel" id="tab-compras">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="fa-solid fa-truck-ramp-box"></i>
+            Materiais Comprados & Insumos
+          </div>
+          <button class="btn btn-success btn-sm" onclick="App.openQuickModal('compra')">
+            <i class="fa-solid fa-plus"></i> Registrar Compra
+          </button>
+        </div>
+
+        <!-- Filtros por Status de Compras -->
+        <div class="filter-bar" style="margin-bottom:14px; display:flex; gap:6px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm compras-filtro-btn active" data-status="todos">
+            Todos
+          </button>
+          <button type="button" class="btn btn-outline btn-sm compras-filtro-btn" data-status="Finalizado">
+            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Finalizado
+          </button>
+          <button type="button" class="btn btn-outline btn-sm compras-filtro-btn" data-status="Pago/Aguardando">
+            <i class="fa-solid fa-clock" style="color:#f59e0b;"></i> Pago/Aguardando
+          </button>
+          <button type="button" class="btn btn-outline btn-sm compras-filtro-btn" data-status="Não pago">
+            <i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Não pago
+          </button>
+        </div>
+
+        <div class="entry-list-container" id="compras-list-container">
+          <!-- Alimentado via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 4: CONTROLE DE ESTOQUE (EXCLUSIVO PLACAS MDF & ACRÍLICO)
+         ======================================================== -->
+    <section class="tab-content-panel" id="tab-estoque">
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">
+              <i class="fa-solid fa-boxes-stacked"></i>
+              Estoque de Placas (MDF & Acrílico)
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">
+              Entradas de Compras & Ajustes Manuais — Consumo e Abatimentos
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" id="btn-abrir-novo-material" style="border-color:var(--blue-cyan); color:var(--blue-cyan); font-weight:700;">
+              <i class="fa-solid fa-layer-group"></i> + Nova Placa
+            </button>
+            <button class="btn btn-sm" id="btn-abrir-aumentar-estoque" style="background:linear-gradient(135deg, #059669, #10b981); border-color:#10b981; color:#fff; font-weight:700;">
+              <i class="fa-solid fa-plus"></i> Aumentar à Mão
+            </button>
+            <button class="btn btn-sm" id="btn-abrir-abater-placa" style="background:linear-gradient(135deg, #d97706, #f59e0b); border-color:#f59e0b; color:#fff; font-weight:700;">
+              <i class="fa-solid fa-minus"></i> Abater à Mão
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtros por Categoria de Placa -->
+        <div class="filter-bar" style="margin-bottom:14px;">
+          <button type="button" class="btn btn-outline btn-sm estoque-filtro-btn active" data-cat="todos">
+            Todas as Placas
+          </button>
+          <button type="button" class="btn btn-outline btn-sm estoque-filtro-btn" data-cat="MDF">
+            Somente MDF
+          </button>
+          <button type="button" class="btn btn-outline btn-sm estoque-filtro-btn" data-cat="Acrílico">
+            Somente Acrílico
+          </button>
+        </div>
+
+        <!-- Visão Mobile (Cards) -->
+        <div class="entry-list-container estoque-mobile-only" id="estoque-cards-mobile" style="margin-bottom:16px;">
+          <!-- Alimentado via JS no celular -->
+        </div>
+
+        <!-- Visão Desktop (Tabela Completa) -->
+        <div class="table-responsive estoque-desktop-only" id="estoque-desktop-table-wrap">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Tipo / Placa</th>
+                <th>Categoria</th>
+                <th>Entradas (Compras / Ajustes)</th>
+                <th>Saídas (Pedidos / Abates)</th>
+                <th>Saldo Disponível</th>
+                <th>Custo Médio</th>
+                <th>Ajuste à Mão</th>
+              </tr>
+            </thead>
+            <tbody id="estoque-table-body">
+              <!-- Alimentado via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Histórico de Ajustes Manuais Feitos à Mão -->
+        <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--border-subtle);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:0.95rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-clock-rotate-left" style="color:var(--blue-cyan);"></i> Últimos Ajustes Feitos à Mão
+            </div>
+            <span style="font-size:0.75rem; color:var(--text-dim);" id="estoque-ajustes-count">0 registros</span>
+          </div>
+          <div class="entry-list-container" id="estoque-ajustes-historico-list">
+            <!-- Alimentado via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 5: CENTRAL DE FECHAMENTO & CONCILIAÇÃO
+         ======================================================== -->
+    <section class="tab-content-panel" id="tab-fechamento">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="fa-solid fa-scale-balanced"></i>
+            Fechamento de Materiais & Controles Internos
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-gravar-fechamento">
+            <i class="fa-solid fa-lock"></i> Consolidar e Salvar Fechamento
+          </button>
+        </div>
+
+        <!-- Filtros de Período -->
+        <div class="filter-bar">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.8rem; color:var(--text-muted);">De:</label>
+            <input type="date" class="filter-input" id="filtro-data-inicio">
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:0.8rem; color:var(--text-muted);">Até:</label>
+            <input type="date" class="filter-input" id="filtro-data-fim">
+          </div>
+        </div>
+
+        <!-- Cards de Conciliação Financeira -->
+        <div class="fechamento-dashboard">
+          <div class="fechamento-card">
+            <div class="metric-label">Total Vendas (Por Conta)</div>
+            <div class="card-value" id="fechamento-total-vendas" style="color:var(--blue-cyan);">R$ 0,00</div>
+            <div class="metric-sub">Entradas faturadas no período</div>
+          </div>
+
+          <div class="fechamento-card">
+            <div class="metric-label">Total Materiais Comprados</div>
+            <div class="card-value" id="fechamento-total-compras" style="color:var(--text-muted);">R$ 0,00</div>
+            <div class="metric-sub">Insumos e compras no período</div>
+          </div>
+
+          <div class="fechamento-card saldo">
+            <div class="metric-label">Saldo Operacional Líquido</div>
+            <div class="card-value" id="fechamento-saldo-liquido">R$ 0,00</div>
+            <div class="metric-sub">Diferença Vendas - Compras</div>
+          </div>
+        </div>
+
+        <!-- Histórico de Fechamentos Salvos -->
+        <div style="margin-top:24px;">
+          <h3 style="font-size:0.95rem; font-weight:700; margin-bottom:12px; color:var(--text-muted);">
+            <i class="fa-solid fa-box-archive"></i> Fechamentos Arquivados Anteriormente:
+          </h3>
+          <div class="entry-list-container" id="fechamentos-historico-list">
+            <!-- Alimentado via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 6: RELATÓRIOS & EXPORTAÇÃO
+         ======================================================== -->
+    <section class="tab-content-panel" id="tab-relatorios">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="fa-solid fa-file-export"></i>
+            Exportação de Dados & Relatórios
+          </div>
+        </div>
+
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+          Exporte os dados completos do sistema para envio via WhatsApp, arquivamento ou abertura no Excel/Google Planilhas.
+        </p>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
+          
+          <div class="metric-card" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <div style="font-size:1.1rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-file-excel" style="color:#10b981;"></i> Planilha Excel (.xlsx)
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">
+                Gera um arquivo Excel completo com 4 abas: Resumo do Fechamento, Vendas por Conta, Compras e Estoque Atual.
+              </p>
+            </div>
+            <button class="btn btn-success btn-block" id="btn-export-excel">
+              <i class="fa-solid fa-download"></i> Baixar Planilha Excel
+            </button>
+          </div>
+
+          <div class="metric-card" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <div style="font-size:1.1rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-file-pdf" style="color:var(--blue-cyan);"></i> Relatório Imprimível / PDF
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">
+                Formatação limpa e pronta para impressão ou para salvar em PDF no celular e enviar por WhatsApp.
+              </p>
+            </div>
+            <button class="btn btn-outline btn-block" id="btn-print-pdf">
+              <i class="fa-solid fa-print"></i> Visualizar / Gerar PDF
+            </button>
+          </div>
+
+          <div class="metric-card" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <div style="font-size:1.1rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-shield-halved" style="color:var(--blue-bright);"></i> Backup de Segurança (JSON)
+              </div>
+              <p style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">
+                Crie uma cópia de segurança de todos os seus dados ou transfira entre aparelhos facilmente.
+              </p>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline btn-sm" id="btn-backup-json" style="flex:1;">
+                <i class="fa-solid fa-download"></i> Baixar Backup
+              </button>
+              <label class="btn btn-outline btn-sm" style="flex:1; cursor:pointer;">
+                <i class="fa-solid fa-upload"></i> Restaurar
+                <input type="file" id="input-restore-json" accept=".json" style="display:none;">
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 7: CONFIGURAÇÕES & GOOGLE SHEETS
+         ======================================================== -->
+    <section class="tab-content-panel" id="tab-config">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            Conectar com Google Sheets (Planilhas Google)
+          </div>
+          <button class="btn btn-outline btn-sm" id="btn-manual-sync">
+            <i class="fa-solid fa-rotate"></i> Sincronizar Agora
+          </button>
+        </div>
+
+        <form id="form-settings">
+          <div class="form-group">
+            <label class="form-label">Nome da Empresa / Projeto:</label>
+            <input type="text" class="form-input" id="config-empresa-nome" placeholder="Ex: Minha Empresa de Instalações">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">URL do Google Apps Script (Web App):</label>
+            <input type="url" class="form-input" id="config-sheets-url" placeholder="https://script.google.com/macros/s/SEU_ID/exec">
+            <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
+              Ao preencher esta URL, todos os lançamentos feitos no celular serão salvos automaticamente na sua planilha do Google Sheets.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Contas mais usadas (separadas por vírgula):</label>
+            <input type="text" class="form-input" id="config-contas-list" placeholder="Conta 01, Conta 02, Balcão, Loja, Obra A">
+            <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
+              Estas opções viram botões de 1 toque no celular para agilizar seu lançamento.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Materiais mais frequentes (separados por vírgula):</label>
+            <input type="text" class="form-input" id="config-materiais-list" placeholder="Fio 2.5mm, Disjuntor 32A, Tubo PVC 100mm">
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Salvar Configurações
+          </button>
+        </form>
+
+        <!-- GERENCIADOR DO CATÁLOGO DE PLACAS (JSON) -->
+        <div style="margin-top:24px; padding:18px; background:var(--bg-surface-elevated); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h4 style="color:var(--blue-cyan); font-size:0.95rem; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-code"></i> Catálogo de Placas MDF & Acrílico (JSON)
+              </h4>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                As placas cadastradas aqui são as únicas controladas no Estoque. Você pode adicionar novas placas ou editar a lista.
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" id="btn-config-novo-material" style="border-color:var(--blue-cyan); color:var(--blue-cyan); font-weight:600;">
+                <i class="fa-solid fa-layer-group"></i> + Nova Placa
+              </button>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-reset-catalogo">
+                <i class="fa-solid fa-rotate-left"></i> Restaurar Original
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-save-catalogo-json">
+                <i class="fa-solid fa-floppy-disk"></i> Salvar Catálogo
+              </button>
+            </div>
+          </div>
+          <textarea id="config-catalogo-json" class="form-input" style="font-family:monospace; font-size:0.8rem; height:180px; resize:vertical; line-height:1.4;"></textarea>
+        </div>
+
+        <!-- Tutorial de 3 passos para configurar o Google Sheets -->
+        <div style="margin-top:24px; padding:16px; background:var(--bg-surface-elevated); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+          <h4 style="color:var(--blue-cyan); font-size:0.9rem; margin-bottom:8px;">
+            <i class="fa-solid fa-lightbulb"></i> Como ativar o Google Sheets em 3 passos:
+          </h4>
+          <ol style="font-size:0.8rem; color:var(--text-muted); padding-left:18px; line-height:1.6;">
+            <li>Abra uma planilha nova no <a href="https://sheets.google.com" target="_blank" style="color:var(--blue-bright);">Google Sheets</a> e clique em <b>Extensões > Apps Script</b>.</li>
+            <li>Cole o código pronto que está no arquivo <b>google-apps-script.js</b> deste projeto.</li>
+            <li>Clique em <b>Implantar > Nova implantação</b>, selecione <b>App da Web</b>, marque "Quem tem acesso: Qualquer pessoa" e copie a URL gerada para colar no campo acima!</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================
+       BOTÃO FLUTUANTE (FAB) PARA CELULAR
+       Sempre ao alcance do polegar
+       ======================================================== -->
+  <button class="fab-quick-entry" id="btn-fab-open" title="Lançar Venda ou Compra">
+    <i class="fa-solid fa-plus" style="font-size:1.2rem;"></i>
+    <span>NOVO REGISTRO</span>
+  </button>
+
+  <!-- ========================================================
+       BARRA DE NAVEGAÇÃO INFERIOR PARA CELULAR (BOTTOM NAV)
+       ======================================================== -->
+  <nav class="bottom-nav">
+    <button class="bottom-nav-item active" data-tab-target="tab-dashboard">
+      <i class="fa-solid fa-house"></i>
+      <span>Início</span>
+    </button>
+    <button class="bottom-nav-item" data-tab-target="tab-vendas">
+      <i class="fa-solid fa-clipboard-list"></i>
+      <span>Pedidos</span>
+    </button>
+    <button class="bottom-nav-item" data-tab-target="tab-compras">
+      <i class="fa-solid fa-truck-ramp-box"></i>
+      <span>Compras</span>
+    </button>
+    <button class="bottom-nav-item" data-tab-target="tab-estoque">
+      <i class="fa-solid fa-boxes-stacked"></i>
+      <span>Estoque</span>
+    </button>
+    <button class="bottom-nav-item" data-tab-target="tab-fechamento">
+      <i class="fa-solid fa-scale-balanced"></i>
+      <span>Fechar</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================
+       MODAL DE LANÇAMENTO RELÂMPAGO (BOTTOM SHEET PARA CELULAR)
+       ======================================================== -->
+  <div class="modal-backdrop" id="modal-quick-entry">
+    <div class="bottom-sheet">
+      <!-- Traço para puxar com o dedo -->
+      <div class="sheet-handle"></div>
+
+      <div class="sheet-header">
+        <div class="sheet-title" id="modal-sheet-title">
+          <i class="fa-solid fa-bolt" style="color:var(--blue-cyan);"></i> Novo Lançamento
+        </div>
+        <button class="btn-close-modal" id="btn-close-modal" title="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- SELETOR RÁPIDO: PEDIDO OU COMPRA -->
+      <div class="type-toggle-pill">
+        <button type="button" class="toggle-btn active venda" id="toggle-type-venda">
+          <i class="fa-solid fa-clipboard-list"></i> Pedido
+        </button>
+        <button type="button" class="toggle-btn compra" id="toggle-type-compra">
+          <i class="fa-solid fa-truck-ramp-box"></i> Compra de Material
+        </button>
+      </div>
+
+      <form id="form-quick-entry">
+        <!-- CAMPOS OCULTOS PARA EDIÇÃO -->
+        <input type="hidden" id="modal-edit-id" value="">
+        <input type="hidden" id="modal-pedido-num" value="">
+
+        <!-- DATA E HORA AUTOMÁTICA -->
+        <div class="form-group" id="modal-group-data">
+          <label class="form-label" id="modal-label-data">
+            <i class="fa-regular fa-clock" style="color:var(--blue-cyan);"></i> Data e Hora do Pedido:
+          </label>
+          <input type="datetime-local" class="form-input" id="modal-input-data" required>
+        </div>
+
+        <!-- CAMPO DE CONTA / CLIENTE (PEDIDO) -->
+        <div class="form-group" id="modal-group-conta">
+          <label class="form-label" id="modal-label-conta">Identificação / Cliente do Pedido:</label>
+          <input type="text" class="form-input" id="modal-input-conta" placeholder="Ex: Cliente João, Loja, Balcão, Conta 1..." value="Pedido Balcão">
+          <!-- Atalhos rápidos em chips -->
+          <div class="chips-container" id="chips-contas"></div>
+        </div>
+
+        <!-- CAMPO DE FORNECEDOR (COMPRA) -->
+        <div class="form-group" id="modal-group-fornecedor" style="display:none;">
+          <label class="form-label">Fornecedor / Loja:</label>
+          <input type="text" class="form-input" id="modal-input-fornecedor" placeholder="Ex: Distribuidora Central, Fornecedor MDF...">
+        </div>
+
+        <!-- MATERIAL / INSUMO -->
+        <div class="form-group">
+          <label class="form-label" id="modal-label-material">
+            <i class="fa-solid fa-shapes" style="color:var(--blue-cyan);"></i> Material / Produto ou Insumo:
+          </label>
+          <input type="text" list="lista-materiais-catalogo" class="form-input" id="modal-input-material" placeholder="Selecione a placa ou digite o insumo (ex: fita, parafuso)..." required autocomplete="off">
+          <datalist id="lista-materiais-catalogo">
+            <!-- Alimentado via JS com o catálogo de placas -->
+          </datalist>
+
+          <!-- Barra de Filtro Rápido de Placas (Mobile-Friendly) -->
+          <div style="display:flex; gap:6px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; color:var(--text-dim);"><i class="fa-solid fa-layer-group"></i> Seleção Rápida:</span>
+            <button type="button" class="btn btn-outline btn-sm modal-filter-chip active" data-matcat="todos" style="padding:3px 8px; font-size:0.72rem;">Todas</button>
+            <button type="button" class="btn btn-outline btn-sm modal-filter-chip" data-matcat="MDF" style="padding:3px 8px; font-size:0.72rem;">Placas MDF</button>
+            <button type="button" class="btn btn-outline btn-sm modal-filter-chip" data-matcat="Acrílico" style="padding:3px 8px; font-size:0.72rem;">Placas Acrílico</button>
+          </div>
+
+          <!-- Chips de materiais frequentes -->
+          <div class="chips-container" id="chips-materiais" style="max-height:105px; overflow-y:auto; padding-top:4px;"></div>
+          
+          <!-- Indicador visual se o item entra em estoque de placas ou é insumo geral -->
+          <div id="modal-material-estoque-badge" style="font-size:0.75rem; margin-top:6px; font-weight:600;"></div>
+        </div>
+
+        <!-- LINHA DE QUANTIDADE E VALOR UNITÁRIO (TECLADO NUMÉRICO) -->
+        <div class="input-row-2">
+          <div class="form-group">
+            <label class="form-label">Quantidade:</label>
+            <input type="number" step="any" inputmode="decimal" class="form-input" id="modal-input-qtd" placeholder="1" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Valor Unitário (R$):</label>
+            <input type="number" step="0.01" inputmode="decimal" class="form-input" id="modal-input-unit" placeholder="0,00">
+          </div>
+        </div>
+
+        <!-- TOTAL AUTOMÁTICO -->
+        <div class="form-group">
+          <label class="form-label">Valor Total (R$):</label>
+          <input type="number" step="0.01" inputmode="decimal" class="form-input" id="modal-input-total" placeholder="0,00" required style="font-size:1.2rem; font-weight:800; color:var(--blue-cyan);">
+        </div>
+
+        <!-- FORMA DE PAGAMENTO E STATUS -->
+        <div class="input-row-2">
+          <div class="form-group" id="modal-group-pagamento">
+            <label class="form-label">Pagamento / Forma:</label>
+            <select class="form-select" id="modal-input-pagamento">
+              <option value="Pix">Pix</option>
+              <option value="Dinheiro">Dinheiro</option>
+              <option value="Cartão Débito">Cartão Débito</option>
+              <option value="Cartão Crédito">Cartão Crédito</option>
+              <option value="Faturado / Boleto">Faturado / Boleto</option>
+              <option value="Conta Corrente">Conta Corrente</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="modal-group-status">
+            <label class="form-label" id="modal-label-status">Status:</label>
+            <select class="form-select" id="modal-input-status">
+              <option value="Finalizado">Finalizado</option>
+              <option value="Pago/Aguardando">Pago/Aguardando</option>
+              <option value="Não pago">Não pago</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" id="modal-group-nf">
+          <label class="form-label">Nº Nota Fiscal / Comprovante (Opcional):</label>
+          <input type="text" class="form-input" id="modal-input-nf" placeholder="Ex: NF-12345">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observações / Detalhes:</label>
+          <input type="text" class="form-input" id="modal-input-obs" placeholder="Detalhes das peças cortadas, cliente, etc...">
+        </div>
+
+        <!-- BOTÃO GRANDE DE SALVAR -->
+        <button type="submit" class="btn btn-primary btn-block" id="modal-btn-submit" style="padding:16px; font-size:1.05rem; margin-top:8px;">
+          Confirmar Pedido
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL DE AJUSTE MANUAL DE ESTOQUE (AUMENTAR & ABATER À MÃO)
+       ======================================================== -->
+  <div class="modal-backdrop" id="modal-abater-placa">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+
+      <div class="sheet-header">
+        <div class="sheet-title" id="modal-ajuste-titulo" style="color:var(--emerald-green);">
+          <i class="fa-solid fa-circle-plus"></i> Aumentar Placa no Estoque
+        </div>
+        <button class="btn-close-modal" id="btn-close-abater-modal" title="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- SELETOR RÁPIDO: AUMENTAR (+) OU ABATER (-) -->
+      <div class="type-toggle-pill" id="ajuste-toggle-tipo" style="margin-bottom:16px;">
+        <button type="button" class="toggle-btn active aumentar" id="toggle-ajuste-aumentar">
+          <i class="fa-solid fa-plus-circle"></i> Aumentar (+ Entrada)
+        </button>
+        <button type="button" class="toggle-btn abater" id="toggle-ajuste-abater">
+          <i class="fa-solid fa-minus-circle"></i> Abater (- Saída)
+        </button>
+      </div>
+
+      <form id="form-abater-placa">
+        <div class="form-group">
+          <label class="form-label">Placa / Material:</label>
+          <select class="form-select" id="abater-select-placa" required>
+            <!-- Alimentado via JS com a lista de placas -->
+          </select>
+          <div id="ajuste-placa-saldo-preview" style="font-size:0.8rem; margin-top:6px; font-weight:600;"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="ajuste-label-qtd">Quantidade a Aumentar:</label>
+          <input type="number" step="any" inputmode="decimal" class="form-input" id="abater-input-qtd" placeholder="Ex: 1 ou 0.5" required style="font-size:1.15rem; font-weight:800;">
+          
+          <!-- Chips rápidos de quantidade -->
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center;">
+            <span style="font-size:0.75rem; color:var(--text-dim);"><i class="fa-solid fa-bolt"></i> Atalho:</span>
+            <button type="button" class="chip-preset" data-add-qtd="0.5">+0.5</button>
+            <button type="button" class="chip-preset" data-add-qtd="1">+1</button>
+            <button type="button" class="chip-preset" data-add-qtd="2">+2</button>
+            <button type="button" class="chip-preset" data-add-qtd="5">+5</button>
+            <button type="button" class="chip-preset" data-add-qtd="10">+10</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Data e Hora do Ajuste:</label>
+          <input type="datetime-local" class="form-input" id="abater-input-data" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" id="ajuste-label-motivo">Motivo do Ajuste (Opcional):</label>
+          <input type="text" class="form-input" id="abater-input-motivo" placeholder="Ex: Sobra de corte reaproveitada, contagem física, devolução...">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btn-submit-ajuste-placa" style="background:linear-gradient(135deg, #059669, #10b981); border-color:#10b981; padding:15px; font-size:1rem; margin-top:8px;">
+          <i class="fa-solid fa-plus"></i> Confirmar Entrada de Placas
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL DE CADASTRO DE NOVA PLACA / MATERIAL NO ESTOQUE
+       ======================================================== -->
+  <div class="modal-backdrop" id="modal-novo-material">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+
+      <div class="sheet-header">
+        <div class="sheet-title" style="color:var(--blue-cyan);">
+          <i class="fa-solid fa-layer-group"></i> Cadastrar Nova Placa no Estoque
+        </div>
+        <button class="btn-close-modal" id="btn-close-novo-material-modal" title="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-novo-material">
+        <div class="form-group">
+          <label class="form-label">Nome Completo da Placa / Material:</label>
+          <input type="text" class="form-input" id="novo-mat-nome" placeholder="Ex: Acrílico Verde 2mm, MDF Cru 3mm Verde..." required autocomplete="off">
+          <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
+            Dica: Coloque a cor e a espessura no nome para identificação rápida.
+          </div>
+        </div>
+
+        <div class="input-row-2">
+          <div class="form-group">
+            <label class="form-label">Categoria Principal:</label>
+            <select class="form-select" id="novo-mat-categoria" required>
+              <option value="MDF">MDF</option>
+              <option value="Acrílico">Acrílico</option>
+              <option value="Outro">Outro Material</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Espessura (Opcional):</label>
+            <input type="text" class="form-input" id="novo-mat-espessura" placeholder="Ex: 2mm, 3mm, 6mm...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Quantidade Inicial Já em Estoque (Opcional):</label>
+          <input type="number" step="any" inputmode="decimal" class="form-input" id="novo-mat-qtd-inicial" placeholder="0 (Deixe em branco se for comprar depois)">
+          <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
+            Se você já tem placas dessa na oficina, informe a quantidade para iniciar com o saldo certo.
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" style="padding:15px; font-size:1rem; margin-top:8px;">
+          <i class="fa-solid fa-check"></i> Salvar e Adicionar ao Estoque
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICAÇÃO -->
+  <div id="app-toast" class="toast-notification"></div>
+
+  <!-- SCRIPTS DA APLICAÇÃO -->
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
